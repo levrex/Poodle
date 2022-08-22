@@ -4,6 +4,7 @@ from scipy.stats import ttest_ind
 from scipy.spatial.distance import cosine# cosine minkowski
 from sklearn.metrics.pairwise import cosine_similarity
 import time
+from math import exp
 
 def t_test(x,y,alternative='both-sided'):
     """
@@ -47,7 +48,7 @@ def getSimilarityWithin(sim_matrix, cluster_indices):
 
     return cluster_scores
 
-def projectSample(maui_model, z_space, d_input, sample): # sample
+def projectSampleMAUI(maui_model, z_space, d_input, sample): # sample
     """
     Input:
         maui_model = Loaded autoencoder object with the learned product space 
@@ -57,7 +58,8 @@ def projectSample(maui_model, z_space, d_input, sample): # sample
         sample = features of 1 patient from the replication set
         
     Description: 
-    Project new sample onto the product space by employing previously trained MAUI mdoel
+    Project new sample onto the product space by employing previously trained MAUI model.
+    We also make sure to look at the same latent factors as before!
     """
     
     sample_cat = sample[d_input['cat']].copy()
@@ -69,22 +71,21 @@ def projectSample(maui_model, z_space, d_input, sample): # sample
     
     df_num = pd.DataFrame(columns=list(sample_num.index))
     df_num.loc[0] = sample_num
-
+    
     # Project new sample in product space
-    t0 = time.time()
-    # Combined analysis using MUSE
-    #z = maui_model.transform({ 'Categorical': categoric_Full.T, 'Lab_numerical': numeric_Full.T}) # 'Mannequin_Counts': df_counts.T,
-    z_patient = maui_model.transform({ 'Categorical': df_cat.T, 'Lab_numerical': df_num.T}) # 'Mannequin_Counts': df_counts.T,
+    z_patient = maui_model.transform({ 'Categorical': df_cat.T, 'Lab_numerical': df_num.T})
+    
+    # Add Merged factors
+    l_merged = [col for col in z_space.columns if '_' in col]
+    for col in l_merged: 
+        i, j = col.split('_')[0], col.split('_')[1]
+        z_patient[col] =  z_patient[['LF%s' % i, 'LF%s' % j]].mean(axis=1)
     
     # Only select relevant latent factors
     z_patient = z_patient[z_space.columns]
     
     # Add new patient to product space
     z_space = z_space.append(z_patient, ignore_index = True)
-
-    # add projection to product space
-    t1 = time.time()
-    #print('Time to project %s into product space: %s' % (new_pat, str(t1-t0))) # .as_matrix()
     return z_space
 
 def get_digital_twins(df_meta, new_pat, sim_matrix, indices, idx=None):
@@ -198,6 +199,27 @@ def mapping_to_cluster(df, sim_matrix, new_pat, cluster_ix=0, cluster_label='Phe
 
     return patient_scores, cluster_scores
 
+def calculate_proba_pval_softmax(l_p, n_clusters, l_t=None, l_m=None, l_mp=None):
+    """
+    Calculate probabilities of patients belonging to each cluster
+    according to the pairwise distributions
+    
+    l_p = list with pvalues
+    n_clusters = The total number of clusters you have
+    l_t = list with t statistic, we will weight these, unless it isn't provided
+    l_m = list with cluster mean
+    l_mp = list with patient mean
+    """
+    l_prob = []
+    
+    if l_m != None:
+        l_prob = [exp(l_p[i]+l_m[i]) for i in range(len(l_p))] 
+    else : 
+        l_prob = [exp(l_p[i]) for i in range(len(l_p))]  
+    
+    # Change any values close to zero 
+    l_prob = [l_prob[i]/sum(l_prob) for i in range(len(l_prob))] 
+    return l_prob
 
 def calculate_proba_pval(l_p, n_clusters, l_t=None, l_m=None, l_mp=None):
     """
@@ -247,22 +269,25 @@ def calculate_proba_top10(df, n_clusters):
         l_prob.append(sum(df[df['PhenoGraph_clusters']==clus]['Similarity'])/top_n)
     return l_prob
 
-def classifyPatient(new_pat, df, sim_matrix, N_CLUSTERS = 4):
+def classifyPatient(new_pat, df, sim_matrix, N_CLUSTERS = 4, strategy='log'):
     l_p = []
     l_t = []
     l_mean = []
     l_mean_pat = []
 
     for i in range(N_CLUSTERS):
-        lut = {0: 'b', 1: 'y', 2: 'g', 3: 'r'}
-
         patient_scores, cluster_scores = mapping_to_cluster(df, sim_matrix, new_pat, cluster_ix=i)
         tstat, pval = t_test(patient_scores, cluster_scores, alternative='less')
         l_mean.append(np.mean(cluster_scores)) 
         l_mean_pat.append(np.mean(patient_scores)) 
         l_p.append(pval)
         l_t.append(tstat)
-    return calculate_proba_pval(l_p, N_CLUSTERS, l_m=l_mean , l_mp=l_mean_pat) # , l_m=l_mean # , l_mp=l_mean_pat
+    if strategy == 'log' : 
+        return calculate_proba_pval(l_p, N_CLUSTERS, l_m=l_mean , l_mp=l_mean_pat) 
+    elif strategy == 'softmax' :
+        return calculate_proba_pval_softmax(l_p, N_CLUSTERS, l_m=l_mean , l_mp=l_mean_pat) 
+    elif strategy == 'top10' :
+        return calculate_proba_pval_top10(l_p, N_CLUSTERS)
 
 def getClusterLabel(row):
     l_proba = [col for col in row.index if 'Proba_cluster' in col]
@@ -285,10 +310,12 @@ def getMetaDataPatient(df_cluster, l_pseudoId, new_pat):
     df_meta['PhenoGraph_clusters'] = df_meta['pseudoId'].apply(lambda x : d_phenograph[x] if x in d_phenograph.keys() else -1)
     return df_meta
 
-def predictPatientCluster(maui_model, df_meta, z_existent, d_input, sample, sim_matrix=None):
+def predictPatientCluster(maui_model, df_meta, z_existent, d_input, sample, sim_matrix=None, strategy='log'):
+    """
+    """
     new_pat = sample.name
     
-    z_updated = projectSample(maui_model, z_existent.copy(),  d_input, sample) # df_categoric[l_cat], df_numeric
+    z_updated = projectSampleMAUI(maui_model, z_existent.copy(),  d_input, sample) # df_categoric[l_cat], df_numeric
     # We only need to calculate the pairwise similarities of the initial space 1 time
     if type(sim_matrix) == type(None) :
         # Construct similarity matrix
@@ -306,6 +333,5 @@ def predictPatientCluster(maui_model, df_meta, z_existent, d_input, sample, sim_
     sim_matrix_child[len(sim_matrix_child)-1] = l_dist
     
     # Classify patients
-    l_prob = classifyPatient(new_pat, df_meta, sim_matrix_child)
-    
+    l_prob = classifyPatient(new_pat, df_meta, sim_matrix_child, strategy='log')
     return l_prob, z_updated
