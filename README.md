@@ -95,4 +95,4 @@ Product space (2D representation)            |  Newly projected patients on prod
 
 
 ## WIP
-Be aware that this github repo is still a work in progress. We will update the readme as we make new additions to the tool. For example: we aim to add baseline comparison and batch correction in the near future.
+Be aware that this github repo is still a work in progress. We will update the readme as we make new additions to the tool. For example: we aim to add baseline comparison and batch correction in the near future. Furthermore, we want to improve the functionality for users that work with uniform data (w/ single modality). 
