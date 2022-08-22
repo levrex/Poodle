@@ -84,6 +84,15 @@ df_neighbours = pup.find_neighbours(df_meta, z, new_pat)
 viz.plot_neighbours(df_neighbours, new_pat)
 ```
 
+#### Identify batch effects with tSNE
+```python
+pup.plot_tsne(fit1, group_id=metadata_original['IS_REPLICATE'], path='figures/original/tsne_original.png')
+pup.plot_tsne(fit2, group_id=metadata_w_replicates['IS_REPLICATE'], path='figures/replication/tsne_replication_projected.png')
+```
+Product space (2D representation)            |  Newly projected patients on product space
+:-------------------------:|:-------------------------:
+![tsne_original](figures/original/tsne_original.png)  |  ![tsne_replicate](figures/replication/tsne_replication_projected.png)
+
 
 ## WIP
-Be aware that this github repo is still a work in progress. We will update the readme as we make new additions to the tool. For example: we aim to add tSNE projection, baseline comparison and batch correction in the near future.
+Be aware that this github repo is still a work in progress. We will update the readme as we make new additions to the tool. For example: we aim to add baseline comparison and batch correction in the near future.
