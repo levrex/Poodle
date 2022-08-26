@@ -10,13 +10,13 @@ We used the autoencoder architecture of MAUI as an example. However, one could a
 #### Robust to difference in dimensionality
 Poodle is flexible for situations where certain data is absent in the clinic, as one may build a shared product space and only project patients on the variables present in both sets. However, ensure that the key features are still included. The more you diverge from the initial set of features, the more you'll loose the cluster essence.
 
-#### Assigning patients
-Poodle assigns a label based on the orientation of the (new) patient in the learned embedding. It does so by creating two distributions for each cluster: 
-1. The patient vs cluster similarity (How similar is patient to the cluster?)
+#### Assigning new samples to clusters
+Poodle assigns a label based on the orientation of the (new) sample in the learned embedding. It does so by creating two distributions for each cluster: 
+1. The sample vs cluster similarity (How similar is the sample to the cluster?)
 2. The within cluster similarity (How stable is the cluster?)
 
 The weight of each of these features is learned on the initial data set with a ML-technique.
-<img style="float: left;" src="figures/misc/DeployPoodle.png" width="800" height="800" />
+![poodleLabeler](figures/misc/DeployPoodle.png) 
 
 ## Installation
 Once you have downloaded the github repo you can install the required packages by running:
