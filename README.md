@@ -10,6 +10,14 @@ We used the autoencoder architecture of MAUI as an example. However, one could a
 #### Robust to difference in dimensionality
 Poodle is flexible for situations where certain data is absent in the clinic, as one may build a shared product space and only project patients on the variables present in both sets. However, ensure that the key features are still included. The more you diverge from the initial set of features, the more you'll loose the cluster essence.
 
+#### Assigning patients
+Poodle assigns a label based on the orientation of the (new) patient in the learned embedding. It does so by creating two distributions for each cluster: 
+1. The patient vs cluster similarity (How similar is patient to the cluster?)
+2. The within cluster similarity (How stable is the cluster?)
+
+The weight of each of these features is learned on the initial data set with a ML-technique.
+<img style="float: left;" src="figures/misc/DeployPoodle.png" width="800" height="800" />
+
 ## Installation
 Once you have downloaded the github repo you can install the required packages by running:
 
@@ -42,21 +50,21 @@ from poodle import utils as pup
 df_meta = pup.getMetaDataPatient(df_cluster, list(df_cluster['pseudoId'].values), new_pat)
 ```
 
-#### Project a patient onto the latent space
+#### Labeling new patients
+
 ```python
 # Now you can project the patient onto the learned embedding. You need to supply the following: 
 # the model (i.e. maui), metadata, original latent space, modality information and sample data.
 
-# project & classify a new patient
-y, z = pup.predictPatientCluster(maui_model, df_meta, z_existent, d_input, sample) 
+# project a new patient and calculate similarity with each cluster
+z = pup.getOrientation(maui_model, df_meta, z_existent, d_input, sample, sim_matrix, cluster_label='PhenoGraph_clusters')
 
 # Collect coordinates of newly added patients
-z_new.append(np.array(z)[-1])
+y_pred = pup.classifyPatient(z, path='../example_data/model/labeler/')
 ```
 Output:
-* `y`: the cluster probabilities for a new patient
-* `z`: the coordinates of the new patient (on the latent space)
-* `z_new`: the coordinates of all new patients
+* `z`: the orientation of a patient relative to each clusters (represented by a few scalars as shown in figure 1)
+* `y_pred`: the predicted probabilities for a new patient
 
 ## Visualization in poodle
 #### Check quality of replicate clusters vs shared product space
@@ -65,7 +73,7 @@ from poodle import visualization as viz
 import pandas as pd
 
 # Import clustering probabilities of all new patients 
-df_projection = pd.read_csv('../example_data/results/ClusterAssignment_NewPatients.csv', sep=',')
+df_projection = pd.read_csv('../example_data/results/ClusterAssignment_NewSamples.csv', sep=',')
 
 # Plot both original & replicate distribution
 viz.plotQualityControl(df_cluster[['Cluster', 'pseudoId']], df_projection, z_existent, pd.DataFrame(z_new)) 

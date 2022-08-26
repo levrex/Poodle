@@ -35,7 +35,7 @@ def plotQualityControl(df_old, df_new, z_old, z_new):
         cluster_indices_old = list(df_old[df_old['PhenoGraph_clusters']==i].index)
         
         # Get the indices of patients from specific cluster
-        cluster_indices_new = list(df_new[df_new['PredictedCluster']==i+1].index)
+        cluster_indices_new = list(df_new[df_new['PhenoGraph_clusters']==i].index)
         
         # Maybe create standalone function at some point
         cluster_scores_old = pup.getSimilarityWithin(sim_old, cluster_indices_old)
@@ -90,8 +90,8 @@ def plotClusterMapping(df, z_filtered, new_pat):
     for i in range(N_CLUSTERS):
 
         lut = {0: 'b', 1: 'y', 2: 'g', 3: 'r'}
-
-        patient_scores, cluster_scores = pup.mapping_to_cluster(df, sim_matrix, new_pat, cluster_ix=i)
+        
+        patient_scores, cluster_scores = pup.similarityToCluster(df, sim_matrix, cluster_ix=i, output_dist=True)
         tstat, pval = pup.t_test(patient_scores, cluster_scores, alternative='less')
         l_p.append(pval)
 

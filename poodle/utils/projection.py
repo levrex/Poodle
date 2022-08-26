@@ -5,6 +5,8 @@ from scipy.spatial.distance import cosine# cosine minkowski
 from sklearn.metrics.pairwise import cosine_similarity
 import time
 from math import exp
+from pickle import load
+import xgboost as xgb
 
 def t_test(x,y,alternative='both-sided'):
     """
@@ -141,158 +143,6 @@ def find_neighbours(df_meta, z_filtered, new_pat, idx=None):
     indices = pd.Series(df_meta.index, index=df_meta['pseudoId']).drop_duplicates()
 
     return get_digital_twins(df_meta, new_pat, sim_matrix, indices, idx=idx)
-
-def mapping_to_cluster(df, sim_matrix, new_pat, cluster_ix=0, cluster_label='PhenoGraph_clusters', id_label='pseudoId'):
-    """
-    Description:
-        Calculate the distances of a new patient to a specific cluster (cluster_ix), and 
-        compare this distribution (distance of new patient vs all patients of cluster) to 
-        the within cluster similarity (all pairwise distances of said cluster).
-        
-    
-    Input: 
-        df = pandas dataframe containing the metadata
-        sim_matrix = distance/similarity matrix 
-        new_pat = patient of interest
-        l_pseudoId_replication = the pseudo identifiers used
-        cluster_ix = the cluster of interest
-        cluster_label = name of cluster columns
-        id_label = name of patient columns
-        
-    Return:
-        patient_scores = distance between the new patient and every patient in the specified cluster
-        cluster_scores = all pairwise distances of patients within the same cluster
-    
-    ToDo: Fix hardcoded column names (such as pseudoId & PhenoGraph_clusters)
-    """
-    idx = None
-
-    #Construct a reverse map of indices and movie titles
-    indices = pd.Series(df.index, index=df[id_label]).drop_duplicates()
-
-    if idx == None:
-        # Get the index of current patient
-        idx = indices[new_pat]
-    else :
-        idx = idx
-    
-    # Get the indices of patients from specific cluster
-    cluster_indices = list(df[df[cluster_label]==cluster_ix].index)
-    
-    # Add the new patient
-    patient_indices = cluster_indices.copy()
-    patient_indices.append(idx)
-    
-    # Subset similarity matrix on said cluster
-    sim_matrix = pd.DataFrame(sim_matrix).loc[patient_indices, patient_indices]
-    
-    # Patient vs cluster
-    patient_scores = list(sim_matrix[idx])
-    patient_scores = sorted(patient_scores, reverse=True)
-    patient_scores = patient_scores[1:] # remove comparison with self
-
-    # Within cluster
-    sim_matrix = np.array(pd.DataFrame(sim_matrix).loc[cluster_indices, cluster_indices])
-    # Keep scores of all unique pairwise distances within cluster
-    mask = np.triu(np.ones_like(sim_matrix, dtype=np.bool),1) # 1 below diagonal
-    cluster_scores =  np.array(sim_matrix[mask])
-
-    return patient_scores, cluster_scores
-
-def calculate_proba_pval_softmax(l_p, n_clusters, l_t=None, l_m=None, l_mp=None):
-    """
-    Calculate probabilities of patients belonging to each cluster
-    according to the pairwise distributions
-    
-    l_p = list with pvalues
-    n_clusters = The total number of clusters you have
-    l_t = list with t statistic, we will weight these, unless it isn't provided
-    l_m = list with cluster mean
-    l_mp = list with patient mean
-    """
-    l_prob = []
-    
-    if l_m != None:
-        l_prob = [exp(l_p[i]+l_m[i]) for i in range(len(l_p))] 
-    else : 
-        l_prob = [exp(l_p[i]) for i in range(len(l_p))]  
-    
-    # Change any values close to zero 
-    l_prob = [l_prob[i]/sum(l_prob) for i in range(len(l_prob))] 
-    return l_prob
-
-def calculate_proba_pval(l_p, n_clusters, l_t=None, l_m=None, l_mp=None):
-    """
-    Calculate probabilities of patients belonging to each cluster
-    according to the pairwise distributions
-    
-    l_p = list with pvalues
-    n_clusters = The total number of clusters you have
-    l_t = list with t statistic, we will weight these, unless it isn't provided
-    l_m = list with cluster mean
-    l_mp = list with patient mean
-    """
-    l_prob = []
-    l_p = [0.99 if i == 1 else i for i in l_p ]
-    
-    if l_mp == None and l_m != None:
-        l_mp = [1 for i in range(len(l_m))]
-    
-    # Perform inverse log transformation (to get probability)
-    if l_t == None:
-        l_prob = [1./np.log10(l_p[i]) for i in range(len(l_p))] 
-    else : # weight t-statistic
-        
-        l_prob = [(1./np.log10(l_p[i]))*max(l_t[i], 1.) for i in range(len(l_p))] 
-        
-    if l_m == None:
-        l_prob = [1./np.log10(l_p[i]) for i in range(len(l_p))] 
-    else : # we value more pronounced representations more!
-        l_prob = [(1./(np.log10(l_p[i]*l_m[i])))*l_mp[i] for i in range(len(l_p))]  # *l_mp[i]
-    
-    # Change any values close to zero 
-    l_prob = [l_prob[i]/sum(l_prob) for i in range(len(l_prob))] 
-    #print(l_prob)
-    return l_prob
-
-def calculate_proba_top10(df, n_clusters):
-    """
-    Calculate probabilities of patients belonging to each cluster 
-    according to the top 10 neighbours
-    
-    n_clusters = The total number of clusters you have
-    top_n = how many neighbours do you look at
-    """
-    top_n = 10
-    l_prob = []
-    for clus in range(n_clusters):
-        l_prob.append(sum(df[df['PhenoGraph_clusters']==clus]['Similarity'])/top_n)
-    return l_prob
-
-def classifyPatient(new_pat, df, sim_matrix, N_CLUSTERS = 4, strategy='log'):
-    l_p = []
-    l_t = []
-    l_mean = []
-    l_mean_pat = []
-
-    for i in range(N_CLUSTERS):
-        patient_scores, cluster_scores = mapping_to_cluster(df, sim_matrix, new_pat, cluster_ix=i)
-        tstat, pval = t_test(patient_scores, cluster_scores, alternative='less')
-        l_mean.append(np.mean(cluster_scores)) 
-        l_mean_pat.append(np.mean(patient_scores)) 
-        l_p.append(pval)
-        l_t.append(tstat)
-    if strategy == 'log' : 
-        return calculate_proba_pval(l_p, N_CLUSTERS, l_m=l_mean , l_mp=l_mean_pat) 
-    elif strategy == 'softmax' :
-        return calculate_proba_pval_softmax(l_p, N_CLUSTERS, l_m=l_mean , l_mp=l_mean_pat) 
-    elif strategy == 'top10' :
-        return calculate_proba_pval_top10(l_p, N_CLUSTERS)
-
-def getClusterLabel(row):
-    l_proba = [col for col in row.index if 'Proba_cluster' in col]
-    l_val = row[l_proba].values
-    return np.argmax(l_val) + 1
     
 def getMetaDataPatient(df_cluster, l_pseudoId, new_pat):
     """
@@ -310,28 +160,122 @@ def getMetaDataPatient(df_cluster, l_pseudoId, new_pat):
     df_meta['PhenoGraph_clusters'] = df_meta['pseudoId'].apply(lambda x : d_phenograph[x] if x in d_phenograph.keys() else -1)
     return df_meta
 
-def predictPatientCluster(maui_model, df_meta, z_existent, d_input, sample, sim_matrix=None, strategy='log'):
+def similarityToCluster(df, sim_matrix, cluster_ix=0, cluster_label='PhenoGraph_clusters', output_dist=False):
     """
-    """
-    new_pat = sample.name
+    Description:
+        Calculate the distances of a new patient to a specific cluster (cluster_ix), and 
+        compare this distribution (distance of new patient vs all patients of cluster) to 
+        the within cluster similarity (all pairwise distances of said cluster).
+
+    Input:
+        df = pandas dataframe containing the metadata
+        sim_matrix = distance/similarity matrix 
+        new_pat = patient of interest
+        cluster_ix = the cluster of interest
+        cluster_label = name of cluster columns
+        output_dist = set to True if you want to get the raw cluster/ patient distances
+            
+    Output: 
+        list of predictors expressing the relationship between the sample and the cluster
     
-    z_updated = projectSampleMAUI(maui_model, z_existent.copy(),  d_input, sample) # df_categoric[l_cat], df_numeric
+    """
+    # Get the indices of patients from specific cluster
+    cluster_indices = list(df[df[cluster_label]==cluster_ix].index)
+
+    # Add the new patient
+    patient_indices = cluster_indices.copy()
+    patient_indices.append(len(sim_matrix)-1)
+
+    # Subset similarity matrix on said cluster
+    sim_matrix_cluster = pd.DataFrame(sim_matrix.copy()).loc[patient_indices, patient_indices]
+
+    # Patient vs cluster
+    patient_scores = list(sim_matrix_cluster[len(sim_matrix)-1])
+    patient_scores = sorted(patient_scores, reverse=True)
+    patient_scores = patient_scores[1:] # remove comparison with self
+
+    # Within cluster
+    sim_matrix_cluster = np.array(pd.DataFrame(sim_matrix_cluster).loc[cluster_indices, cluster_indices])
+    # Keep scores of all unique pairwise distances within cluster
+    mask = np.triu(np.ones_like(sim_matrix_cluster, dtype=np.bool),1) # 1 below diagonal
+    cluster_scores =  np.array(sim_matrix_cluster[mask])
+
+    # Perform one tailed t-test
+    tstat, pval = t_test(patient_scores, cluster_scores, alternative='less')
+
+    # Define predictors (Be aware: we assume a normal distribution)
+    pred_0 = max(0.000001, pval) #pval # H0 = patient is similar to cluster, Ha = patient is not similar
+    pred_1 = np.mean(cluster_scores) # average cluster probability
+    pred_2 = np.std(cluster_scores) # stability of the cluster
+    pred_3 = np.mean(patient_scores) # average patient probability
+    pred_4 = np.std(patient_scores) # stability of patient probability
+    
+    if output_dist == False: 
+        # Return predictors for model
+        return [pred_0, pred_1, pred_2, pred_3, pred_4]
+    else : 
+        # Return predictors for model
+        return patient_scores, cluster_scores
+
+def getOrientation(maui_model, df_meta, z_existent, d_input, sample, sim_matrix=None, cluster_label='PhenoGraph_clusters'):
+    """
+    Description: 
+    Discover the orientation of the sample on the learned embedding and quantify its similarity to each cluster
+    
+    Output: 
+        l_orientation = list that features predictors expressing the relationship 
+            between the sample and each cluster 
+        df_meta = metadata of original sample population + newly projected sample
+    
+    """
+    # Bookmark all orientation info
+    l_orientation = []
+    z_updated = projectSampleMAUI(maui_model, z_existent.copy(),  d_input, sample)
+    
     # We only need to calculate the pairwise similarities of the initial space 1 time
     if type(sim_matrix) == type(None) :
         # Construct similarity matrix
         sim_matrix = cosine_similarity(z_updated[:-1].astype(np.float32))
-    
+
     # Create duplicate
     sim_matrix_child = sim_matrix.copy()
     sim_matrix_child = pd.DataFrame(sim_matrix_child)
-    
+
     # Calculate distance of projected patient to other patients
     l_dist = [1-cosine(z_updated.iloc[-1].values, z_updated.loc[i].values) for i in range(len(z_updated))]
-    
+
     # Add to distance matrix
     sim_matrix_child.loc[len(sim_matrix_child)] = l_dist[:-1]
     sim_matrix_child[len(sim_matrix_child)-1] = l_dist
     
-    # Classify patients
-    l_prob = classifyPatient(new_pat, df_meta, sim_matrix_child, strategy='log')
-    return l_prob, z_updated
+    n_clusters = len(df_meta[cluster_label][:-1].unique()) # ignore final row (because it is the projected patient)
+    
+    for cluster_ix in range(n_clusters): 
+        # Calculate similarity to each cluster
+        sim_scores = similarityToCluster(df_meta, sim_matrix_child, cluster_ix, cluster_label=cluster_label)
+        l_orientation.extend(sim_scores)
+    return l_orientation
+
+def classifyPatient(X, path='../example_data/model/labeler/'):
+    """
+    Description:
+        Employ a previously trained Poodle model to assign cluster labels to
+        the new samples
+    
+    Input:
+        X = input data
+        path = path to Poodle model tasked with labeling the patients
+    """
+    
+    # load model
+    loaded_bst = xgb.Booster()
+    loaded_bst.load_model('%s' % path + 'xgb_model.json' )
+
+    # load the scaler
+    scaler = load(open('%s' % path + 'scaler.pkl' , 'rb'))
+    
+    # Apply Z-score normalization on the data
+    X = scaler.transform(X)
+
+    dmat_blind = xgb.DMatrix(X)
+    return loaded_bst.predict(dmat_blind) 
