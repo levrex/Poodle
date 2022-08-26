@@ -15,7 +15,7 @@ Poodle assigns a label based on the orientation of the (new) sample in the learn
 1. The sample vs cluster similarity (How similar is the sample to the cluster?)
 2. The within cluster similarity (How stable is the cluster?)
 
-The weight of each of these features is learned on the initial data set with a ML-technique.
+The characteristics of these distributions are captured and used to predict the cluster that a sample belongs to. We adopt an ML-technique to carefully weight each of these predictors untill the Labeler reaches a near perfect performance (see [this notebook](examples/trainPoodleLabeler.ipynb) for confusion matrix). 
 ![poodleLabeler](figures/misc/DeployPoodle.png) 
 
 ## Installation
