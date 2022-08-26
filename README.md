@@ -10,14 +10,6 @@ We used the autoencoder architecture of MAUI as an example. However, one could a
 #### Robust to difference in dimensionality
 Poodle is flexible for situations where certain data is absent in the clinic, as one may build a shared product space and only project patients on the variables present in both sets. However, ensure that the key features are still included. The more you diverge from the initial set of features, the more you'll loose the cluster essence.
 
-#### Assigning new samples to clusters
-Poodle assigns a label based on the orientation of the (new) sample in the learned embedding. It does so by creating two distributions for each cluster: 
-1. The sample vs cluster similarity (How similar is the sample to the cluster?)
-2. The within cluster similarity (How stable is the cluster?)
-
-The characteristics of these distributions are captured and used to predict the cluster that a sample belongs to. We adopt an ML-technique to carefully weight each of these predictors untill the Labeler reaches a near perfect performance (see [this notebook](examples/trainPoodleLabeler.ipynb) for confusion matrix). 
-![poodleLabeler](figures/misc/DeployPoodle.png) 
-
 ## Installation
 Once you have downloaded the github repo you can install the required packages by running:
 
@@ -101,6 +93,16 @@ Product space (2D representation)            |  Newly projected patients on prod
 :-------------------------:|:-------------------------:
 ![tsne_original](figures/original/tsne_original.png)  |  ![tsne_replicate](figures/replication/tsne_replication_projected.png)
 
+
+## Methodology 
+
+#### Assigning new samples to clusters
+Poodle assigns a label based on the orientation of the (new) sample in the learned embedding. It does so by creating two distributions for each cluster: 
+1. The sample vs cluster similarity (How similar is the sample to the cluster?)
+2. The within cluster similarity (How stable is the cluster?)
+
+The characteristics of these distributions are captured and used to predict the cluster that a sample belongs to. We adopt an ML-technique to carefully weight each of these predictors untill the Labeler reaches a near perfect performance (see [this notebook](examples/trainPoodleLabeler.ipynb) for confusion matrix). 
+![poodleLabeler](figures/misc/DeployPoodle.png) 
 
 ## WIP
 Be aware that this github repo is still a work in progress. We will update the readme as we make new additions to the tool. For example: we aim to add baseline comparison and batch correction in the near future. Furthermore, we want to improve the functionality for users that work with uniform data (w/ single modality). 
