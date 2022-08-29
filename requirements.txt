@@ -1,0 +1,20 @@
+bokeh==2.3.2
+# kaleido==0.2.1 # if you want to save plotly images
+Keras==2.2.4
+Keras-Applications @ file:///tmp/build/80754af9/keras-applications_1594366238411/work
+Keras-Preprocessing @ file:///tmp/build/80754af9/keras-preprocessing_1612283640596/work
+# lightgbm==3.3.2
+matplotlib==3.3.4
+maui-tools==0.1.95
+numba==0.53.1
+numpy @ file:///tmp/build/80754af9/numpy_and_numpy_base_1603487797006/work
+# optuna==2.10.1
+pandas==1.1.5
+# plotly @ file:///opt/conda/envs/env/conda-bld/plotly_1660225103991/work/packages/python/plotly/dist/plotly-5.10.0.tar.gz
+scikit-learn==0.24.2
+scipy==1.2.1
+seaborn==0.11.2
+shap==0.41.0
+tensorboard==1.12.2
+tensorflow==1.12.0
+xgboost==1.5.2
