@@ -152,7 +152,7 @@ def plot_neighbours(df_neighbours, new_pat):
     
     plt.show()
     
-def plotSpatialVariation(l_new, l_old):
+def plotSpatialVariation(l_new, l_old, title='Compare spatial variance Exploratory vs Replication set'):
     """ 
     Description:
         Plot the cluster proportions per set
@@ -169,7 +169,7 @@ def plotSpatialVariation(l_new, l_old):
 
     # Add some text for labels, title and custom x-axis tick labels, etc.
     ax.set_ylabel('Quantity')
-    ax.set_title('Compare spatial variance Exploratory vs Replication set')
+    ax.set_title(title)
     ax.set_xticks(x)
     ax.legend()
 

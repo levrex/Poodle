@@ -49,7 +49,7 @@ df_meta = pup.getMetaDataPatient(df_cluster, list(df_cluster['pseudoId'].values)
 # the model (i.e. maui), metadata, original latent space, modality information and sample data.
 
 # project a new patient and calculate similarity with each cluster
-z = pup.getOrientation(maui_model, df_meta, z_existent, d_input, sample, sim_matrix, cluster_label='PhenoGraph_clusters')
+z = pup.getOrientation(maui_model, df_meta, z_existent, d_input, sample, cluster_label='PhenoGraph_clusters')
 
 # Collect coordinates of newly added patients
 y_pred = pup.classifyPatient(z, path='../example_data/model/labeler/')

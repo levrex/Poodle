@@ -1,2 +1,6 @@
 example_data/
 tsne/
+poodle/utils/__pycache__/
+poodle/__pycache__/
+examples/.ipynb_checkpoints/
+dummy_data/

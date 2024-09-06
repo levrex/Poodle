@@ -33,13 +33,20 @@ def add_projected_patients(df_old, z_old, df_new , z_new,  ix=None):
     """
     if ix == None:
         # Add all samples to metadata and latent space
-        df = df_old.append(df_new, ignore_index=True)
-        z = z_old.append(z_new, ignore_index=True)
+        #df = df_old.append(df_new, ignore_index=True)
+        #z = z_old.append(z_new, ignore_index=True)
+        df = pd.concat([df_old, df_new], ignore_index=True)
+        #z = pd.concat([z_old, z_new], ignore_index=True) # toDo fix!!!! -> these are pandas sereis
+        z = pd.concat([z_old, pd.DataFrame(z_new)], axis=0, ignore_index=True)
         return df, z
     else :
          # Only add specific sample and latent space to metadata
-        df = df_old.append(df_new.iloc[ix], ignore_index=True)
-        z = z_old.append(z_new.iloc[ix], ignore_index=True)
+        #df = df_old.append(df_new.iloc[ix], ignore_index=True)
+        #z = z_old.append(z_new.iloc[ix], ignore_index=True)
+        
+        df = pd.concat([df_old, pd.DataFrame(df_new.iloc[ix]).T], ignore_index=True)
+        z = pd.concat([z_old, pd.DataFrame(z_new.iloc[ix]).T], ignore_index=True)
+        #z = pd.concat([z_old, z_new], axis=0, ignore_index=True)
         return df, z
     
 def plot_tsne(fit, group_id, path=None):
@@ -53,12 +60,20 @@ def plot_tsne(fit, group_id, path=None):
     """
     target_ids = range(len(group_id))
     plt.figure(figsize=(6, 5))
-    colors = 'r', 'g', 'b', 'c', 'm', 'y', 'k', 'w', 'orange', 'purple'
-    for i, c, label in zip(target_ids, colors, group_id.unique()):
+    
+    if len(group_id.unique()) <= 2:
+        colors = '#ff0000', '#1e90ff' # if binary = choose 2 complementary colors
+    else :
+        colors = '#4F6CCF', '#2db9cc', '#fcba03', '#FA4D4D',  "#7a4da4", "#a67c73", "#FF0000FF", "#CCFF00FF", "#49BA2B", "#0066FFFF", "#CC00FFFF", '#FF9595'
+        #colors = 'tab:blue', 'tab:orange', 'tab:green','tab:red', 'm', 'y', 'k', 'w', 'orange', 'purple', 'c'
+    #print(group_id.unique())
+    for i, c, label in zip(target_ids, colors, [j for j in range(len(group_id.unique()))]): # 
+        #print(i)
         plt.scatter(fit[group_id == i, 0], fit[group_id == i, 1], c=c, label=label)
     plt.legend()
     if path != None:
         plt.savefig(path)
+        plt.close()
     else :
         plt.show()
     return 
@@ -83,7 +98,7 @@ def plot_interactive_tsne(embedding, df, l_cat, l_binary=[], patient_id='pseudoI
     cluster_ix = 0
 
     first_col = df[l_cat[0]] # c_first
-    l_hex = ['#f00', '#fe0500', '#fc0a00', '#fb0f00', '#fa1400', '#f91900', '#f71e00', '#f62200', '#f52700', '#f42c00', '#f23000', '#f13500', '#f03a00', '#ee3e00', '#ed4200', '#ec4700', '#eb4b00', '#e94f00', '#e85400', '#e75800', '#e65c00', '#e46000', '#e36400', '#e26800', '#e16c00', '#df7000', '#de7300', '#d70', '#db7b00', '#da7f00', '#d98200', '#d88600', '#d68900', '#d58d00', '#d49000', '#d39300', '#d19700', '#d09a00', '#cf9d00', '#cda000', '#cca300', '#cba600', '#caa900', '#c8ac00', '#c7af00', '#c6b200', '#c5b500', '#c3b800', '#c2ba00', '#c1bd00', '#bfbf00', '#babe00', '#b5bd00', '#b0bc00', '#acba00', '#a7b900', '#a2b800', '#9db700', '#98b500', '#94b400', '#8fb300', '#8ab200', '#86b000', '#81af00', '#7dae00', '#79ac00', '#74ab00', '#70aa00', '#6ca900', '#68a700', '#64a600', '#60a500', '#5ca400', '#58a200', '#54a100', '#50a000', '#4c9e00', '#489d00', '#459c00', '#419b00', '#3d9900', '#3a9800', '#369700', '#339600', '#2f9400', '#2c9300', '#299200', '#269100', '#228f00', '#1f8e00', '#1c8d00', '#198b00', '#168a00', '#138900', '#108800', '#0d8600', '#0b8500', '#088400', '#058300', '#038100', '#008000']
+    l_hex = ['#ff0000', '#fe0204', '#fc0308', '#fb050d', '#f90711', '#f80815', '#f70a19', '#f50c1e', '#f40e22', '#f30f26', '#f1112a', '#f0132e', '#ee1433', '#ed1637', '#ec183b', '#ea193f', '#e91b44', '#e81d48', '#e61f4c', '#e52050', '#e32254', '#e22459', '#e1255d', '#df2761', '#de2965', '#dc2a6a', '#db2c6e', '#da2e72', '#d83076', '#d7317a', '#d6337f', '#d43583', '#d33687', '#d1388b', '#d03a8f', '#cf3b94', '#cd3d98', '#cc3f9c', '#cb41a0', '#c942a5', '#c844a9', '#c646ad', '#c547b1', '#c449b5', '#c24bba', '#c14cbe', '#c04ec2', '#be50c6', '#bd52cb', '#bb53cf', '#ba55d3', '#b756d4', '#b457d5', '#b159d6', '#ae5ad7', '#aa5bd7', '#a75cd8', '#a45dd9', '#a15eda', '#9e60db', '#9b61dc', '#9862dd', '#9563de', '#9164de', '#8e66df', '#8b67e0', '#8868e1', '#8569e2', '#826ae3', '#7f6be4', '#7c6de5', '#786ee5', '#756fe6', '#7270e7', '#6f71e8', '#6c72e9', '#6974ea', '#6675eb', '#6376ec', '#6077ed', '#5c78ed', '#597aee', '#567bef', '#537cf0', '#507df1', '#4d7ef2', '#4a7ff3', '#4781f4', '#4382f4', '#4083f5', '#3d84f6', '#3a85f7', '#3787f8', '#3488f9', '#3189fa', '#2e8afb', '#2a8bfb', '#278cfc', '#248efd', '#218ffe', '#1e90ff']
     l_grey = '#bcbcbc'
 
     
@@ -160,9 +175,9 @@ def plot_interactive_tsne(embedding, df, l_cat, l_binary=[], patient_id='pseudoI
         var data = s1.data;
         var bardata = s3.data;
         var violindata = s4.data;
-        var gradient = ['#f00', '#fe0500', '#fc0a00', '#fb0f00', '#fa1400', '#f91900', '#f71e00', '#f62200', '#f52700', '#f42c00', '#f23000', '#f13500', '#f03a00', '#ee3e00', '#ed4200', '#ec4700', '#eb4b00', '#e94f00', '#e85400', '#e75800', '#e65c00', '#e46000', '#e36400', '#e26800', '#e16c00', '#df7000', '#de7300', '#d70', '#db7b00', '#da7f00', '#d98200', '#d88600', '#d68900', '#d58d00', '#d49000', '#d39300', '#d19700', '#d09a00', '#cf9d00', '#cda000', '#cca300', '#cba600', '#caa900', '#c8ac00', '#c7af00', '#c6b200', '#c5b500', '#c3b800', '#c2ba00', '#c1bd00', '#bfbf00', '#babe00', '#b5bd00', '#b0bc00', '#acba00', '#a7b900', '#a2b800', '#9db700', '#98b500', '#94b400', '#8fb300', '#8ab200', '#86b000', '#81af00', '#7dae00', '#79ac00', '#74ab00', '#70aa00', '#6ca900', '#68a700', '#64a600', '#60a500', '#5ca400', '#58a200', '#54a100', '#50a000', '#4c9e00', '#489d00', '#459c00', '#419b00', '#3d9900', '#3a9800', '#369700', '#339600', '#2f9400', '#2c9300', '#299200', '#269100', '#228f00', '#1f8e00', '#1c8d00', '#198b00', '#168a00', '#138900', '#108800', '#0d8600', '#0b8500', '#088400', '#058300', '#038100', '#008000'];
+        var gradient = ['#ff0000', '#fe0204', '#fc0308', '#fb050d', '#f90711', '#f80815', '#f70a19', '#f50c1e', '#f40e22', '#f30f26', '#f1112a', '#f0132e', '#ee1433', '#ed1637', '#ec183b', '#ea193f', '#e91b44', '#e81d48', '#e61f4c', '#e52050', '#e32254', '#e22459', '#e1255d', '#df2761', '#de2965', '#dc2a6a', '#db2c6e', '#da2e72', '#d83076', '#d7317a', '#d6337f', '#d43583', '#d33687', '#d1388b', '#d03a8f', '#cf3b94', '#cd3d98', '#cc3f9c', '#cb41a0', '#c942a5', '#c844a9', '#c646ad', '#c547b1', '#c449b5', '#c24bba', '#c14cbe', '#c04ec2', '#be50c6', '#bd52cb', '#bb53cf', '#ba55d3', '#b756d4', '#b457d5', '#b159d6', '#ae5ad7', '#aa5bd7', '#a75cd8', '#a45dd9', '#a15eda', '#9e60db', '#9b61dc', '#9862dd', '#9563de', '#9164de', '#8e66df', '#8b67e0', '#8868e1', '#8569e2', '#826ae3', '#7f6be4', '#7c6de5', '#786ee5', '#756fe6', '#7270e7', '#6f71e8', '#6c72e9', '#6974ea', '#6675eb', '#6376ec', '#6077ed', '#5c78ed', '#597aee', '#567bef', '#537cf0', '#507df1', '#4d7ef2', '#4a7ff3', '#4781f4', '#4382f4', '#4083f5', '#3d84f6', '#3a85f7', '#3787f8', '#3488f9', '#3189fa', '#2e8afb', '#2a8bfb', '#278cfc', '#248efd', '#218ffe', '#1e90ff'];
         //var categoric = ["#FF0000FF", "#CCFF00FF", "#49BA2B", "#0066FFFF", "#CC00FFFF", '#FF9595'];
-        var categoric = ["#1578EC", "#ff9940", "#31D631", "#dd4d4e", "#7a4da4", "#a67c73", "#FF0000FF", "#CCFF00FF", "#49BA2B", "#0066FFFF", "#CC00FFFF", '#FF9595'];
+        var categoric = ['#4F6CCF', '#2db9cc', '#fcba03', '#FA4D4D',  "#7a4da4", "#a67c73", "#FF0000FF", "#CCFF00FF", "#49BA2B", "#0066FFFF", "#CC00FFFF", '#FF9595'];
         var grey = '#bcbcbc';
         var cluster_col = cluster_id;
 
@@ -403,4 +418,377 @@ def plot_interactive_tsne(embedding, df, l_cat, l_binary=[], patient_id='pseudoI
     bio.show(layout)
 
     print('\nUMAP figure saved under location: %s' % (path))
+    return
+
+def visualize_umap_bokeh(embedding, df, l_cat, l_binary=[], patient_id='patnr', cluster_id='PhenoGraph_clusters', title='', path=None):
+    """
+    This function generates a bokeh scatter plot based on the provided embedding 
+    (which is generated by a dimension reduction technique)
+    
+    Input:
+        embedding= dataframe / 2d array with distances
+        df = dataframe with columns (in case dist only features the distances)
+        l_cat = specify columns to showcase
+        l_binary = indicates the binary columns where the prevalence should be calculated instead of the mean!
+        patient_id = str indicating column of patient
+        cluster_id = str indicating column of clusters
+        title = title of the bokeh plot
+        path = str indicating the path where to save the file
+    
+    Output:
+        Interactive HTML with a UMAP render
+    """
+    cluster_ix = 0
+    
+    print(len(embedding), len(df))
+    print(len([i for i in l_cat if (i not in df.columns)]), [i for i in l_cat if (i not in df.columns)])
+
+    first_col = df[l_cat[0]] # c_first
+    l_hex = ['#ff0000', '#fe0204', '#fc0308', '#fb050d', '#f90711', '#f80815', '#f70a19', '#f50c1e', '#f40e22', '#f30f26', '#f1112a', '#f0132e', '#ee1433', '#ed1637', '#ec183b', '#ea193f', '#e91b44', '#e81d48', '#e61f4c', '#e52050', '#e32254', '#e22459', '#e1255d', '#df2761', '#de2965', '#dc2a6a', '#db2c6e', '#da2e72', '#d83076', '#d7317a', '#d6337f', '#d43583', '#d33687', '#d1388b', '#d03a8f', '#cf3b94', '#cd3d98', '#cc3f9c', '#cb41a0', '#c942a5', '#c844a9', '#c646ad', '#c547b1', '#c449b5', '#c24bba', '#c14cbe', '#c04ec2', '#be50c6', '#bd52cb', '#bb53cf', '#ba55d3', '#b756d4', '#b457d5', '#b159d6', '#ae5ad7', '#aa5bd7', '#a75cd8', '#a45dd9', '#a15eda', '#9e60db', '#9b61dc', '#9862dd', '#9563de', '#9164de', '#8e66df', '#8b67e0', '#8868e1', '#8569e2', '#826ae3', '#7f6be4', '#7c6de5', '#786ee5', '#756fe6', '#7270e7', '#6f71e8', '#6c72e9', '#6974ea', '#6675eb', '#6376ec', '#6077ed', '#5c78ed', '#597aee', '#567bef', '#537cf0', '#507df1', '#4d7ef2', '#4a7ff3', '#4781f4', '#4382f4', '#4083f5', '#3d84f6', '#3a85f7', '#3787f8', '#3488f9', '#3189fa', '#2e8afb', '#2a8bfb', '#278cfc', '#248efd', '#218ffe', '#1e90ff']
+    l_grey = '#bcbcbc'
+
+    
+    # Create shadow dataframe, because you don't want to take the nan as the max
+    sub_df = df[~df[l_cat[0]].isna()].copy()
+    c_first = [l_hex[round(i/max(sub_df[l_cat[0]]) * 100)] if i==i else l_grey for i in df[l_cat[0]] ]
+
+    c_alpha = [1 if i == cluster_ix else 0.1 for i in df[cluster_id] ]
+    
+    # putting everything in a dataframe
+    umap_df = pd.DataFrame(embedding, columns=['x', 'y'])
+    
+    d_col = dict(x=umap_df['x'], y=umap_df['y'], pt=df[patient_id], clust=df[cluster_id], c_col=c_first, c_alpha=c_alpha)
+    
+    # Add cluster column in case user didn't specify it in l_cat
+    if cluster_id not in l_cat:
+        l_cat.append(cluster_id)
+    
+    for cat in l_cat:
+        d_col[cat] = df[cat]
+    
+    s1 = ColumnDataSource(data=d_col)
+    umap_df['pt'] = df[patient_id]
+    umap_df['value'] = first_col
+    
+    p3 = figure(plot_width=600, plot_height=500, tools="pan,wheel_zoom,box_zoom,reset,hover,save", title="An UMAP projection")
+    cir = p3.circle('x', 'y', source=s1, alpha='c_alpha', line_color='c_col',  fill_color='c_col')
+    
+    # Create barplot to show prevalence of Feature 
+    # Calculate prevalence of first feature
+    #print([(df[((df[cluster_id]==i) & (df[l_cat[0]]==1))], type(i)) for i in range(len(df[cluster_id].unique()))], cluster_id, type(cluster_id))
+    prev = [round(len(df[((df[cluster_id]==i) & (df[l_cat[0]]==1))])/len(df[(df[cluster_id]==i)]), 3) for i in range(len(df[cluster_id].unique()))]
+    
+    s3 = ColumnDataSource(dict(clust=[i for i in range(len(df[cluster_id].unique()))],prev=prev))
+    
+    
+    # Bar plot
+    p4 = figure(plot_width=600, plot_height=500, tools="pan,wheel_zoom,box_zoom,reset,hover", title="Prevalence plot for categorical features")
+    bar = p4.vbar('clust', top='prev', source=s3)
+    
+    hover2 = p4.select(dict(type=HoverTool)) # or p1
+    hover2.tooltips={"clust": "@clust","prev" : "@prev"}
+    
+    # Violin plot
+    #print(df[df[cluster_id]==1][numeric_val])
+    #print(np.percentile(df[(df[cluster_id]==0)][numeric_val].values, 75))
+    q1= [np.percentile(df[(df[cluster_id]==i)][l_cat[0]].values, 25) for i in range(len(df[cluster_id].unique()))]
+    q2= [np.percentile(df[(df[cluster_id]==i)][l_cat[0]].values, 50) for i in range(len(df[cluster_id].unique()))]
+    q3= [np.percentile(df[(df[cluster_id]==i)][l_cat[0]].values, 75) for i in range(len(df[cluster_id].unique()))]
+    iqr = np.array(q3) - np.array(q1)
+    w1 = np.array(q1) - 1.5 * iqr # bottom whisker
+    w2 = np.array(q3) + 1.5 * iqr # top whisker
+    
+    s4 = ColumnDataSource(dict(clust=[i for i in range(len(df[cluster_id].unique()))],q1=q1, q2=q2, q3=q3, w1=w1, w2=w2))
+    
+    p5 = figure(plot_width=600, plot_height=500, x_range=l_cat[0], tools="pan,wheel_zoom,box_zoom,reset,hover", title="Boxplot for numerical features") 
+    hover3 = p5.select(dict(type=HoverTool)) # or p1
+    hover3.tooltips={"clust": "@clust","median (Q1, Q3)" : "@q2 (@q1, @q3)"}
+    
+    #bar = p4.vbar('clust', top='prev', source=s4)
+    b1 = p5.vbar('clust', bottom='q2', top='q3', fill_color="#E08E79", line_color="black", source=s4)
+    b2 = p5.vbar('clust', bottom='q1', top='q2', fill_color="#3B8686", line_color="black", source=s4)
+                          
+    # stems
+    p5.segment(x0='clust', y0='w2',x1='clust', y1='q3', line_width=2, line_color="black", source=s4)
+    p5.segment(x0='clust', y0='w1',x1='clust', y1='q1', line_width=2, line_color="black", source=s4)                      
+    
+    # whiskers (almost-0 height rects simpler than segments)
+    p5.rect('clust', 'w1', 0.2, 0.01, line_color="black", source=s4)
+    p5.rect('clust', 'w2', 0.2, 0.01, line_color="black", source=s4)
+
+    color_select = Select(title="color", value=l_cat[0], 
+                        options = l_cat,)
+    color_select.js_on_change('value', CustomJS(args=dict(cir=cir, s1=s1, s3=s3, s4=s4, cluster_id=cluster_id),
+                                          code="""                                                             
+        var data = s1.data;
+        var bardata = s3.data;
+        var violindata = s4.data;
+        var gradient = ['#ff0000', '#fe0204', '#fc0308', '#fb050d', '#f90711', '#f80815', '#f70a19', '#f50c1e', '#f40e22', '#f30f26', '#f1112a', '#f0132e', '#ee1433', '#ed1637', '#ec183b', '#ea193f', '#e91b44', '#e81d48', '#e61f4c', '#e52050', '#e32254', '#e22459', '#e1255d', '#df2761', '#de2965', '#dc2a6a', '#db2c6e', '#da2e72', '#d83076', '#d7317a', '#d6337f', '#d43583', '#d33687', '#d1388b', '#d03a8f', '#cf3b94', '#cd3d98', '#cc3f9c', '#cb41a0', '#c942a5', '#c844a9', '#c646ad', '#c547b1', '#c449b5', '#c24bba', '#c14cbe', '#c04ec2', '#be50c6', '#bd52cb', '#bb53cf', '#ba55d3', '#b756d4', '#b457d5', '#b159d6', '#ae5ad7', '#aa5bd7', '#a75cd8', '#a45dd9', '#a15eda', '#9e60db', '#9b61dc', '#9862dd', '#9563de', '#9164de', '#8e66df', '#8b67e0', '#8868e1', '#8569e2', '#826ae3', '#7f6be4', '#7c6de5', '#786ee5', '#756fe6', '#7270e7', '#6f71e8', '#6c72e9', '#6974ea', '#6675eb', '#6376ec', '#6077ed', '#5c78ed', '#597aee', '#567bef', '#537cf0', '#507df1', '#4d7ef2', '#4a7ff3', '#4781f4', '#4382f4', '#4083f5', '#3d84f6', '#3a85f7', '#3787f8', '#3488f9', '#3189fa', '#2e8afb', '#2a8bfb', '#278cfc', '#248efd', '#218ffe', '#1e90ff'];
+        //var categoric = ["#FF0000FF", "#CCFF00FF", "#49BA2B", "#0066FFFF", "#CC00FFFF", '#FF9595'];
+        var categoric = ['#4F6CCF', '#2db9cc', '#fcba03', '#FA4D4D',  "#7a4da4", "#a67c73", "#FF0000FF", "#CCFF00FF", "#49BA2B", "#0066FFFF", "#CC00FFFF", '#FF9595'];
+        var grey = '#bcbcbc';
+        var cluster_col = cluster_id;
+
+        var selected_color = cb_obj.value;
+
+        console.log(cb_obj.value)
+        
+        data["desc"] = [] ;
+        for (var i=0;i<data["x"].length; i++) {
+        data["desc"].push(data[selected_color][i]);
+        };
+
+        // Custom max
+        function findmax() {
+                var par = []
+                for (var i = 0; i < arguments.length; i++) {
+                    if (!isNaN(arguments[i])) {
+                        par.push(arguments[i]);
+                    }
+                }
+                return Math.max.apply(Math, par);
+            }
+
+        var max = data[selected_color].reduce(function(a, b) {
+            return Math.max(findmax(a, b), 1); // find max with minimum value of 1
+        });
+
+        data["c_col"] = [] ;
+        for (var i=0;i<data["x"].length; i++) {
+            if (selected_color == cluster_col){
+                data["c_col"].push(categoric[data[selected_color][i]]); // maybe + 1
+            } else {
+                if (isNaN(data[selected_color][i])) {
+                    data["c_col"].push(grey);
+                } else {
+                    var ix = (Math.floor((data[selected_color][i]/max) * 100))
+                    data["c_col"].push(gradient[ix]);
+                };
+                
+            };
+        };
+        
+        // Calculate prevalence of the feature for the barchart
+        var cat = selected_color;
+        
+        var q1 = [];
+        var q2 = [];
+        var q3 = [];
+        var l_w1 = [];
+        var l_w2 = [];
+           
+        bardata["prev"] = [] // is this necessary?
+        var l_prev = [];
+        for (var c=0;c<bardata["clust"].length; c++) {
+            var score = 0;
+            var total = 0;
+            var arr = []; // collect actual values
+            for (var i=0;i<data["x"].length; i++) {
+                if (data["clust"][i] == c ) {
+                    if (!isNaN(data[cat][i])) {
+                        if (data[cat][i] == 1){
+                                score += 1;
+                            };
+                            arr.push(data[cat][i])
+                        };
+                        total += 1;
+                    };
+                };
+            // update prevalence in bar chart based on selected feature
+            l_prev.push((score/total).toFixed(3));
+            
+            
+            // Calculate IQR
+            function quantile(arr, q) {
+                var sorted = arr.sort((a, b) => a - b);
+                var pos = (sorted.length - 1) * q;
+                var base = Math.floor(pos);
+                var rest = pos - base;
+                if (sorted[base + 1] !== undefined) {
+                    return sorted[base] + rest * (sorted[base + 1] - sorted[base]);
+                } else {
+                    return sorted[base];
+                }
+            };
+            var q25 = quantile(arr, .25);
+            var q50 = quantile(arr, .50);
+            var q75 = quantile(arr, .75);
+            
+            var iqr = q75 - q25;
+            var w1 = q25 - 1.5 * iqr
+            var w2 = q75 + 1.5 * iqr
+            
+            q1.push(q25);
+            q2.push(q50);
+            q3.push(q75);
+            l_w1.push(w1); 
+            l_w2.push(w2); 
+            
+            };
+        bardata["prev"] = l_prev;
+        
+        
+        console.log(q1)
+        console.log(l_w1)
+        console.log(l_w2)
+
+        // Calculate q1, q2, q3 of the feature for the violinplot
+        violindata["q1"] = q1;
+        violindata["q2"] = q2;
+        violindata["q3"] = q3;
+        violindata["w1"] = l_w1;
+        violindata["w2"] = l_w2;
+            
+        
+            
+        
+
+        cir.glyph.line_color.field = "c_col";
+        cir.glyph.fill_color.field = "c_col";
+
+        s1.change.emit() // update 
+        s3.change.emit() // update barchart
+        s4.change.emit() // update barchart
+    """)) # dict[cb_obj.value]
+
+    hover = p3.select(dict(type=HoverTool)) # or p1
+    hover.tooltips={"ID": "@pt","value" : "@desc"}
+    
+    
+    def getSummary(col, cluster, cluster_ix):
+        if col.name == cluster_id:
+            return cluster_ix
+        elif col.dtype == float:
+            return round(col.mean(), 3)
+        elif col.dtype == int and col.max() < 3:
+            return round(len(col[col==1])/len(col), 3) #col.value_counts()#/len(col)
+        elif col.dtype == int and col.max() > 2:
+            return round(col.mean(), 3) # round to 2 decimals
+    
+    
+    new_df = pd.DataFrame() 
+    
+    # or from sub cluster?
+    # by default cluster 0
+    new_df[0] = df[df[cluster_id]==cluster_ix][l_cat].apply(lambda x : getSummary(x, cluster_id, cluster_ix))
+    new_df = new_df.reset_index()
+    new_df.columns = ['var', 'meanprev']
+    
+    s2 = ColumnDataSource(new_df)
+
+    columns = [
+            TableColumn(field="var", title="Variable"),
+            TableColumn(field="meanprev", title="Mean or Prevalence"),
+        ]
+    tb = DataTable(source=s2 , columns=columns, width=400, height=280)
+
+
+    alp = Slider(start=0, end=1, value=0.1, step=.01, title="Alpha")
+    
+    
+    cluster_select = Select(title="Select cluster", value=str(cluster_ix), 
+                        options = [str(i) for i in df[cluster_id].unique()])
+    
+    cluster_select.js_on_change('value', CustomJS(args=dict(tb=tb, s2=s2, s1=s1, alp=alp, l_lab=l_cat, l_binary=l_binary, clust = cluster_id),
+                                          code="""
+        var l_lab = l_lab;
+        var l_cat = l_binary;
+        var clust = clust;
+        var data = s2.data;
+        var all = s1.data;
+        var alpha = alp.value;
+        var selected_number = cb_obj.value;
+
+        console.log(l_lab)
+        
+        all["c_alpha"] = [];
+        data["meanprev"] = [] ;
+        for (var j=0;j<l_lab.length; j++){
+            var cat = l_lab[j];
+            
+            var l_rf = [];
+            var sum = 0;
+            
+            for (var i=0;i<all['x'].length; i++) {
+                if (all[clust][i] == cb_obj.value ) {
+                    
+                    if (!isNaN(all[cat][i])) {
+                        all["c_alpha"].push(1);
+                        l_rf.push(all[cat][i]);
+                        if (l_cat.includes(cat)) {
+                            // if categorical => count prevalence
+                            if (all[cat][i] == 1){
+                                sum += 1;
+                                };
+                            } else {
+                            // if numerical => calculate mean
+                            sum += all[cat][i];
+                            };
+                       } else { 
+                        all["c_alpha"].push(0.2);
+                        }; 
+                }else { 
+                     if (!isNaN(all[cat][i])) {
+                      all["c_alpha"].push(alpha);
+                     } else {
+                      all["c_alpha"].push(0.2);
+                     };
+                };
+            
+            data["meanprev"].push((sum/l_rf.length).toFixed(3));
+        };
+
+        data["meanprev"].push(selected_number);
+        
+        // change alpha ? 
+        //all["c_alpha"] = [];
+        //for (var i=0;i<all["x"].length; i++) {
+        //    if (all[clust][i] == cb_obj.value ) {
+        //        
+        //        all["c_alpha"].push(1);
+        //    } else {
+        //        all["c_alpha"].push(alpha);
+        //    };
+        //};
+        
+        
+        s1.change.emit()
+        s2.change.emit()
+    """)) 
+
+    alp.js_on_change('value', CustomJS(args=dict(tb=tb, s1=s1, cs=cluster_select, clust = cluster_id),
+                                          code="""
+        var all = s1.data;
+        var alpha = cb_obj.value;
+        var clust = clust;
+        
+        console.log(cb_obj.value)
+        
+        // change alpha ? 
+        all["c_alpha"] = [];
+        for (var i=0;i<all["x"].length; i++) {
+            if (all[clust][i] == cs.value ) {
+                all["c_alpha"].push(1);
+            } else {
+                all["c_alpha"].push(alpha);
+            };
+        };
+        
+        s1.change.emit()
+                                          
+                                          """))
+
+
+    
+    
+
+    layout = gridplot([[p3, column(tb, alp, cluster_select)],[color_select, ], [p4, p5]]) # 
+    
+    if path == None:
+        bio.output_file("../../tsne/Baseline_%s.html" % (title), mode='inline')
+    else :
+        bio.output_file(path, mode='inline')
+    bio.show(layout)
+
+    print('\nUMAP figure saved under location: TSNE/Baseline_%s.html' % (title))
     return
