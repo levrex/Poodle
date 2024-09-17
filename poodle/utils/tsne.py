@@ -33,50 +33,63 @@ def add_projected_patients(df_old, z_old, df_new , z_new,  ix=None):
     """
     if ix == None:
         # Add all samples to metadata and latent space
-        #df = df_old.append(df_new, ignore_index=True)
-        #z = z_old.append(z_new, ignore_index=True)
         df = pd.concat([df_old, df_new], ignore_index=True)
         #z = pd.concat([z_old, z_new], ignore_index=True) # toDo fix!!!! -> these are pandas sereis
         z = pd.concat([z_old, pd.DataFrame(z_new)], axis=0, ignore_index=True)
         return df, z
     else :
          # Only add specific sample and latent space to metadata
-        #df = df_old.append(df_new.iloc[ix], ignore_index=True)
-        #z = z_old.append(z_new.iloc[ix], ignore_index=True)
-        
         df = pd.concat([df_old, pd.DataFrame(df_new.iloc[ix]).T], ignore_index=True)
         z = pd.concat([z_old, pd.DataFrame(z_new.iloc[ix]).T], ignore_index=True)
-        #z = pd.concat([z_old, z_new], axis=0, ignore_index=True)
         return df, z
     
-def plot_tsne(fit, group_id, path=None):
+def plot_tsne(fit, group_id, foreground=np.nan, path=None, palette=np.nan):
     """
     Description: 
-        Visualize the t-sne 2 dimensional embedding, and color by group_id 
+        Visualize the t-sne 2 dimensional embedding, and color by group_id.
+        User can also provide an additional
         
     Input: 
         fit = tsne fit
         group_id = column (pandas Series) indicating the group of a sample
+        foreground = seperate masking column (pandas Series; range:0-1) that
+        indicates which samples should be placed at the foreground, and which 
+        should be put at the background. Every value part of the background
+        will be drawn in light grey (e.g. you may want to put original
+        embedding to the background if you want to visualize novel patients)
+        
+            Visualize all those from original dataset (e.g. replication = 0) with gray
+        palette = list of hex-encoded colors
     """
-    target_ids = range(len(group_id))
     plt.figure(figsize=(6, 5))
     
-    if len(group_id.unique()) <= 2:
-        colors = '#ff0000', '#1e90ff' # if binary = choose 2 complementary colors
+    if palette!=float:
+        c_cat = ['#4F6CCF', '#2db9cc', '#fcba03', '#FA4D4D',  "#7a4da4", "#C88D94", "#FF0000FF", "#CCFF00FF", "#49BA2B", "#0066FFFF", "#CC00FFFF", '#FF9595']
+        c_binary = ['#ff0000', '#1e90ff']
     else :
-        colors = '#4F6CCF', '#2db9cc', '#fcba03', '#FA4D4D',  "#7a4da4", "#a67c73", "#FF0000FF", "#CCFF00FF", "#49BA2B", "#0066FFFF", "#CC00FFFF", '#FF9595'
-        #colors = 'tab:blue', 'tab:orange', 'tab:green','tab:red', 'm', 'y', 'k', 'w', 'orange', 'purple', 'c'
-    #print(group_id.unique())
+        c_cat = palette
+        c_binary = palette
+    
+    if len(group_id.unique()) <= 2:
+        colors = [c_binary[i] for i in range(len(group_id.unique()))]  # if binary = choose 2 complementary colors
+    else :
+        colors = [c_cat[i] for i in range(len(group_id.unique()))] 
+    if type(foreground)!=float:
+        group_id = pd.Series([-1 if foreground[i] == 0 else group_id[i] for i in range(len(foreground)) ])
+        plt.scatter(fit[group_id == -1, 0], fit[group_id == -1, 1], c='#d4d4d4', label='original')
+    
+    target_ids = range(len(group_id))
+    
     for i, c, label in zip(target_ids, colors, [j for j in range(len(group_id.unique()))]): # 
-        #print(i)
-        plt.scatter(fit[group_id == i, 0], fit[group_id == i, 1], c=c, label=label)
+        if len(fit[group_id == i, 0])> 0:
+            plt.scatter(fit[group_id == i, 0], fit[group_id == i, 1], c=c, label=label)
     plt.legend()
     if path != None:
         plt.savefig(path)
         plt.close()
     else :
         plt.show()
-    return 
+    return  
 
 def plot_interactive_tsne(embedding, df, l_cat, l_binary=[], patient_id='pseudoId', cluster_id='PhenoGraph_clusters', path=''):
     """
