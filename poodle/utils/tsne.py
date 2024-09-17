@@ -47,7 +47,8 @@ def plot_tsne(fit, group_id, foreground=np.nan, path=None, palette=np.nan):
     """
     Description: 
         Visualize the t-sne 2 dimensional embedding, and color by group_id.
-        User can also provide an additional
+        User can also provide an additional column (w/ foreground), which serves as
+        mask to differentiate between foreground and background
         
     Input: 
         fit = tsne fit
